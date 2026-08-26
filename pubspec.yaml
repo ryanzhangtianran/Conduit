@@ -1,0 +1,172 @@
+name: conduit
+description: "The ultimate SSH terminal app"
+# The following line prevents the package from being accidentally published to
+# pub.dev using `flutter pub publish`. This is preferred for private packages.
+publish_to: "none" # Remove this line if you wish to publish to pub.dev
+
+# The following defines the version and build number for your application.
+# A version number is three numbers separated by dots, like 1.2.43
+# followed by an optional build number separated by a +.
+# Both the version and the builder number may be overridden in flutter
+# build by specifying --build-name and --build-number, respectively.
+# In Android, build-name is used as versionName while build-number used as versionCode.
+# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
+# In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
+# Read more about iOS versioning at
+# https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
+# In Windows, build-name is used as the major, minor, and patch parts
+# of the product and file versions while build-number is used as the build suffix.
+version: 2.0.0+34
+
+environment:
+  sdk: ^3.12.2
+
+# Dependencies specify other packages that your package needs in order to work.
+# To automatically upgrade your package dependencies to the latest versions
+# consider running `flutter pub upgrade --major-versions`. Alternatively,
+# dependencies can be manually updated by changing the version numbers below to
+# the latest version available on pub.dev. To see which dependencies have newer
+# versions available, run `flutter pub outdated`.
+dependencies:
+  flutter:
+    sdk: flutter
+
+  auto_route: ^11.1.0
+  archive: ^4.0.9
+  async: ^2.13.1
+  crypto: ^3.0.7
+  cryptography: ^2.9.0
+  dartssh2: ^2.22.5
+  dio: ^5.11.0
+  desktop_drop: ^0.7.1
+  drift: ^2.34.3
+  drift_flutter: ^0.3.1
+  file_picker: ^11.0.3
+  file_saver: ^0.4.0
+  flutter_code_editor: ^0.3.5
+  flutter_hooks: ^0.21.3+1
+  solsynth_express:
+    git:
+      url: https://src.solsynth.dev/SoSYS/Solian.git
+      path: packages/solsynth_express
+      ref: a936275e6e0e43de3eddbc0ed812308742e2b017
+  flutter_secure_storage: ^10.3.1
+  hooks_riverpod: ^3.4.2
+  highlight: ^0.7.0
+  intl: ^0.20.3
+  island_ui_foundation:
+    git:
+      url: https://src.solsynth.dev/SoSYS/Solian.git
+      path: packages/island_ui_foundation
+      ref: a936275e6e0e43de3eddbc0ed812308742e2b017
+  window_manager:
+    git:
+      url: https://github.com/boyan01/window_manager.git
+      path: packages/window_manager
+      ref: 6fae92d21b4c80ce1b8f71c1190d7970cf722bd4
+  local_auth: ^3.0.2
+  logging: ^1.3.0
+  flterm:
+    path: packages/flterm
+  shared_preferences: ^2.5.5
+  super_context_menu: ^0.9.1
+  system_fonts: ^1.0.1
+  uuid: ^4.6.0
+  url_launcher: ^6.3.2
+  yaml: ^3.1.3
+
+  easy_localization: ^3.0.8
+  fl_chart: ^1.2.0
+  flutter_localizations:
+    sdk: flutter
+  material_symbols_icons: ^4.2960.0
+  styled_widget: ^0.4.1
+  package_info_plus: ^9.0.1
+  path: ^1.9.1
+  path_provider: ^2.1.6
+  toml: ^0.18.0
+  material_ui: ^1.0.0
+dev_dependencies:
+  auto_route_generator: ^10.6.0
+  build_runner: ^2.16.0
+  drift_dev: ^2.34.5
+  flutter_test:
+    sdk: flutter
+
+  # The "flutter_lints" package below contains a set of recommended lints to
+  # encourage good coding practices. The lint set provided by the package is
+  # activated in the `analysis_options.yaml` file located at the root of your
+  # package. See that file for information about deactivating specific lint
+  # rules and activating additional ones.
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+  path_provider_platform_interface: ^2.1.3
+
+dependency_overrides:
+  device_info_plus: ^12.4.0
+  hooks: ^2.0.2
+  libghostty:
+    git:
+      url: https://github.com/elias8/libghostty.git
+      path: packages/libghostty
+      ref: 5196982aa96ccbb2e4f6e0c0fe75b5e4e2a11a4a
+
+flutter_launcher_icons:
+  image_path: "assets/icons/icon.png"
+  macos:
+    generate: true
+    image_path: "assets/icons/icon-padded.png"
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/translations/
+    - assets/icons/
+
+  fonts:
+    - family: IBM Plex Sans
+      fonts:
+        - asset: assets/fonts/sans/IBMPlexSans-VariableFont_wdth,wght.ttf
+        - asset: assets/fonts/sans/IBMPlexSans-Italic-VariableFont_wdth,wght.ttf
+          style: italic
+    - family: IBM Plex Mono
+      fonts:
+        - asset: assets/fonts/mono/IBMPlexMono-Thin.ttf
+          weight: 100
+        - asset: assets/fonts/mono/IBMPlexMono-ThinItalic.ttf
+          weight: 100
+          style: italic
+        - asset: assets/fonts/mono/IBMPlexMono-ExtraLight.ttf
+          weight: 200
+        - asset: assets/fonts/mono/IBMPlexMono-ExtraLightItalic.ttf
+          weight: 200
+          style: italic
+        - asset: assets/fonts/mono/IBMPlexMono-Light.ttf
+          weight: 300
+        - asset: assets/fonts/mono/IBMPlexMono-LightItalic.ttf
+          weight: 300
+          style: italic
+        - asset: assets/fonts/mono/IBMPlexMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/mono/IBMPlexMono-Italic.ttf
+          weight: 400
+          style: italic
+        - asset: assets/fonts/mono/IBMPlexMono-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/mono/IBMPlexMono-MediumItalic.ttf
+          weight: 500
+          style: italic
+        - asset: assets/fonts/mono/IBMPlexMono-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/mono/IBMPlexMono-SemiBoldItalic.ttf
+          weight: 600
+          style: italic
+        - asset: assets/fonts/mono/IBMPlexMono-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/mono/IBMPlexMono-BoldItalic.ttf
+          weight: 700
+          style: italic

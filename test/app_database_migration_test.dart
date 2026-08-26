@@ -1,0 +1,139 @@
+import 'dart:io';
+
+import 'package:drift/drift.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:conduit/data/local/app_database.dart';
+
+/// drift_flutter resolves its native database directory through
+/// path_provider; point it at the system temp directory in tests.
+void _mockPathProvider() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  const channel = MethodChannel('plugins.flutter.io/path_provider');
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(channel, (call) async {
+        return Directory.systemTemp.path;
+      });
+}
+
+void main() {
+  _mockPathProvider();
+
+  group('AppDatabase migrations', () {
+    test(
+      'schema 22 database that already has sort_order migrates to 39',
+      () async {
+        final directory = Directory.systemTemp.createTempSync('migration_test');
+        final path = '${directory.path}/stale.sqlite';
+
+        // Reproduce the state left behind by pre-release builds: a servers
+        // table that already contains sort_order while user_version still
+        // reports 22.
+        final seeded = AppDatabase(filePath: path);
+        await seeded
+            .into(seeded.servers)
+            .insert(
+              ServersCompanion.insert(
+                name: 'legacy',
+                host: '10.0.0.1',
+                username: 'root',
+              ),
+            );
+        await seeded.customStatement('PRAGMA user_version = 22');
+        await seeded.close();
+
+        // Opening the database again runs the 22 -> 32 migrations, which
+        // must not fail with a duplicate column error.
+        final database = AppDatabase(filePath: path);
+        final version = await database
+            .customSelect('PRAGMA user_version')
+            .getSingle();
+        expect(version.read<int>('user_version'), 39);
+
+        // The order backfill still ran, so the legacy row keeps its
+        // creation-id position.
+        final row = await database
+            .customSelect(
+              'SELECT sort_order FROM servers WHERE name = ?',
+              variables: [Variable('legacy')],
+            )
+            .getSingle();
+        expect(row.read<int>('sort_order'), 1);
+
+        // The GitHub token table is created for vault-backed token storage.
+        final tokenTable = await database
+            .customSelect(
+              "SELECT name FROM sqlite_master "
+              "WHERE type = 'table' AND name = 'github_tokens'",
+            )
+            .get();
+        expect(tokenTable, isNotEmpty);
+
+        // Saved port-forwarding presets are created in schema 28.
+        final presetTable = await database
+            .customSelect(
+              "SELECT name FROM sqlite_master "
+              "WHERE type = 'table' AND name = 'port_forward_configs'",
+            )
+            .get();
+        expect(presetTable, isNotEmpty);
+
+        // Schema 37 dropped the runtimes feature's watch-config table.
+        final runtimeTable = await database
+            .customSelect(
+              "SELECT name FROM sqlite_master "
+              "WHERE type = 'table' AND name = 'runtime_watch_configs'",
+            )
+            .get();
+        expect(runtimeTable, isEmpty);
+
+        // Vault-synced app preferences are created in schema 31.
+        final settingsTable = await database
+            .customSelect(
+              "SELECT name FROM sqlite_master "
+              "WHERE type = 'table' AND name = 'app_settings'",
+            )
+            .get();
+        expect(settingsTable, isNotEmpty);
+
+        // Schema 33 removed the embedded Tailscale auth key columns.
+        final authKeyColumns = await database
+            .customSelect(
+              "SELECT name FROM pragma_table_info('vault_metadata') "
+              "WHERE name IN ('encrypted_tailscale_auth_key', "
+              "'tailscale_auth_key_nonce')",
+            )
+            .get();
+        expect(authKeyColumns, isEmpty);
+        await database.close();
+      },
+    );
+    test('schema 22 without sort_order adds the column', () async {
+      final directory = Directory.systemTemp.createTempSync('migration_test');
+      final path = '${directory.path}/clean.sqlite';
+
+      final seeded = AppDatabase(filePath: path);
+      await seeded.customStatement(
+        'ALTER TABLE servers DROP COLUMN sort_order',
+      );
+      await seeded.customStatement('PRAGMA user_version = 22');
+      await seeded.close();
+
+      final database = AppDatabase(filePath: path);
+      final version = await database
+          .customSelect('PRAGMA user_version')
+          .getSingle();
+      expect(version.read<int>('user_version'), 39);
+
+      final column = await database
+          .customSelect(
+            "SELECT name FROM pragma_table_info('servers') "
+            "WHERE name = 'sort_order'",
+          )
+          .get();
+      expect(column, isNotEmpty);
+      await database.close();
+    });
+  });
+}
