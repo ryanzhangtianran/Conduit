@@ -139,20 +139,15 @@ class GitHubRunDetailPage extends ConsumerWidget {
           ...jobs.when(
             loading: () => const [LinearProgressIndicator()],
             error: (error, _) => [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Symbols.warning, size: 16, color: scheme.error),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'githubJobsLoadError'.tr(args: ['$error']),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: scheme.error,
-                      ),
-                    ),
-                  ),
-                ],
+              GithubLoadErrorNotice(
+                message: 'githubJobsLoadError'.tr(args: ['$error']),
+                onRetry: () => ref.invalidate(
+                  githubRunJobsProvider((
+                    owner: owner,
+                    name: name,
+                    runId: runId,
+                  )),
+                ),
               ),
             ],
             data: (jobs) => [

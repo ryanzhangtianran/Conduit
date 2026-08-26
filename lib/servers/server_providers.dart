@@ -10,6 +10,7 @@ import 'package:system_fonts/system_fonts.dart';
 
 import 'package:conduit/data/local/app_database.dart';
 import 'package:conduit/shared/services/preference_store.dart';
+import 'package:conduit/shared/services/update_service.dart';
 import 'ghostty_terminal_session_adapter.dart';
 import 'port_forward_supervisor.dart';
 import 'port_forwarding_models.dart';
@@ -504,6 +505,154 @@ class ConnectOnStartupNotifier extends PreferenceNotifier<bool> {
   Object encode(bool value) => value;
   @override
   bool? decode(Object raw) => raw is bool ? raw : null;
+}
+
+/// Whether Conduit looks for a new GitHub release shortly after launch.
+final autoCheckUpdatesProvider =
+    NotifierProvider<AutoCheckUpdatesNotifier, bool>(
+      AutoCheckUpdatesNotifier.new,
+    );
+
+class AutoCheckUpdatesNotifier extends PreferenceNotifier<bool> {
+  @override
+  String get key => 'autoCheckUpdates';
+  @override
+  bool get defaultValue => true;
+  @override
+  Object encode(bool value) => value;
+  @override
+  bool? decode(Object raw) => raw is bool ? raw : null;
+}
+
+/// What the updater knows: the last check's outcome, whether a check is
+/// running, and the progress of an install in flight.
+class AvailableUpdateState {
+  const AvailableUpdateState({
+    this.result,
+    this.checking = false,
+    this.installing = false,
+    this.downloaded = 0,
+    this.downloadTotal = 0,
+    this.installError,
+  });
+
+  final UpdateCheckResult? result;
+  final bool checking;
+  final bool installing;
+  final int downloaded;
+  final int downloadTotal;
+  final Object? installError;
+
+  /// The newer release when the last check found one.
+  UpdateInfo? get update => switch (result) {
+    UpdateAvailable(:final update) => update,
+    _ => null,
+  };
+
+  AvailableUpdateState copyWith({
+    UpdateCheckResult? result,
+    bool? checking,
+    bool? installing,
+    int? downloaded,
+    int? downloadTotal,
+    Object? installError,
+    bool clearInstallError = false,
+  }) => AvailableUpdateState(
+    result: result ?? this.result,
+    checking: checking ?? this.checking,
+    installing: installing ?? this.installing,
+    downloaded: downloaded ?? this.downloaded,
+    downloadTotal: downloadTotal ?? this.downloadTotal,
+    installError: clearInstallError ? null : installError ?? this.installError,
+  );
+}
+
+/// The update check shared by the About page and the launch-time hook.
+final availableUpdateProvider =
+    NotifierProvider<AvailableUpdateNotifier, AvailableUpdateState>(
+      AvailableUpdateNotifier.new,
+    );
+
+class AvailableUpdateNotifier extends Notifier<AvailableUpdateState> {
+  static const lastCheckKey = 'lastUpdateCheckAt';
+
+  /// Launch-time checks are skipped when one ran more recently than this.
+  static const startupCheckInterval = Duration(hours: 6);
+
+  var _startupCheckDone = false;
+
+  @override
+  AvailableUpdateState build() => const AvailableUpdateState();
+
+  /// Asks GitHub for the latest release; the outcome lands in [state] and
+  /// the time of the check is remembered for the launch-time throttle.
+  Future<UpdateCheckResult?> check() async {
+    if (state.checking) return null;
+    state = state.copyWith(checking: true);
+    final result = await ref.read(updateServiceProvider).check();
+    await ref
+        .read(preferenceStoreProvider)
+        .write(lastCheckKey, DateTime.now().millisecondsSinceEpoch);
+    if (!ref.mounted) return result;
+    state = state.copyWith(checking: false, result: result);
+    return result;
+  }
+
+  /// The once-per-launch check: skipped when the preference is off or a
+  /// check ran within [startupCheckInterval]. Returns the newer release
+  /// when there is one so the caller can announce it.
+  Future<UpdateInfo?> checkOnStartup() async {
+    if (_startupCheckDone) return null;
+    _startupCheckDone = true;
+    if (!ref.read(autoCheckUpdatesProvider)) return null;
+    final last = ref.read(preferenceStoreProvider).read<int>(lastCheckKey);
+    if (last != null) {
+      final elapsed = DateTime.now().difference(
+        DateTime.fromMillisecondsSinceEpoch(last),
+      );
+      if (elapsed < startupCheckInterval) return null;
+    }
+    return switch (await check()) {
+      UpdateAvailable(:final update) => update,
+      _ => null,
+    };
+  }
+
+  /// Downloads [update], spawns the installer and then quits through
+  /// [quit] so the installer can replace the bundle. A failed download is
+  /// reported in [AvailableUpdateState.installError] and nothing quits.
+  Future<void> install(
+    UpdateInfo update, {
+    required Future<void> Function() quit,
+  }) async {
+    if (state.installing) return;
+    state = state.copyWith(
+      installing: true,
+      downloaded: 0,
+      downloadTotal: update.size ?? 0,
+      clearInstallError: true,
+    );
+    try {
+      await ref
+          .read(updateServiceProvider)
+          .downloadAndInstall(
+            update,
+            onProgress: (received, total) {
+              if (!ref.mounted) return;
+              state = state.copyWith(
+                downloaded: received,
+                downloadTotal: total > 0 ? total : null,
+              );
+            },
+          );
+    } catch (e) {
+      if (ref.mounted) {
+        state = state.copyWith(installing: false, installError: e);
+      }
+      return;
+    }
+    await quit();
+  }
 }
 
 final cursorAnimationEnabledProvider =

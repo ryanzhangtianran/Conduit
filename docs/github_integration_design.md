@@ -12,7 +12,7 @@ a failure badge on the GitHub rail destination. The integration is read-only.
 | Surface | Where |
 | --- | --- |
 | Sign-in (OAuth device flow), sign-out | `GitHubSection` (`github_section.dart`) on the GitHub page |
-| Pinned repositories (search picker over the account's repos, pin/unpin) | `GitHubSection` |
+| Pinned repositories (pin/unpin; search picker dialog over the account's repos) | `GitHubSection`, `showGitHubRepoPickerDialog` (`github_repo_picker_dialog.dart`) |
 | Runs feed: latest run per workflow of every pinned repo, with branch, run number, actor, status/conclusion | `GitHubSection` |
 | Run detail: header, "Open on GitHub", jobs with steps | `GitHubRunDetailPage` |
 | Dashboard strip: one tile per pinned repo showing its newest run, failing count | `GithubWorkflowStatusStrip` (`servers_page.dart`) |

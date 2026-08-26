@@ -12,6 +12,7 @@ import 'package:conduit/routing/app_router.gr.dart';
 
 import 'github_models.dart';
 import 'github_providers.dart';
+import 'github_repo_picker_dialog.dart';
 import 'github_ui.dart';
 
 /// GitHub account, pinned repositories and their latest workflow runs.
@@ -442,11 +443,9 @@ class _SignedInView extends ConsumerWidget {
     final connection = ref.read(githubActiveConnectionProvider);
     if (connection == null) return;
     final pinnedSlugs = {for (final pin in pinned) '${pin.owner}/${pin.name}'};
-    final selected = await showModalBottomSheet<GitHubRepo>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (context) => _RepoPickerSheet(pinnedSlugs: pinnedSlugs),
+    final selected = await showGitHubRepoPickerDialog(
+      context,
+      pinnedSlugs: pinnedSlugs,
     );
     if (selected == null) return;
     await ref
@@ -629,119 +628,6 @@ class _RunTile extends StatelessWidget {
             runId: run.id,
             run: run,
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RepoPickerSheet extends ConsumerStatefulWidget {
-  const _RepoPickerSheet({required this.pinnedSlugs});
-
-  final Set<String> pinnedSlugs;
-
-  @override
-  ConsumerState<_RepoPickerSheet> createState() => _RepoPickerSheetState();
-}
-
-class _RepoPickerSheetState extends ConsumerState<_RepoPickerSheet> {
-  final _search = TextEditingController();
-  String _query = '';
-
-  @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final available = ref.watch(githubAvailableReposProvider);
-    final repos = available.asData?.value ?? const <GitHubRepo>[];
-    final query = _query.trim().toLowerCase();
-    final filtered = repos.where((repo) {
-      if (query.isEmpty) return true;
-      return repo.slug.toLowerCase().contains(query) ||
-          (repo.description?.toLowerCase().contains(query) ?? false);
-    }).toList();
-
-    return SizedBox(
-      width: 560,
-      child: SheetScaffold(
-        titleText: 'githubAddRepo'.tr(),
-        heightFactor: 0.7,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-              child: TextField(
-                controller: _search,
-                autofocus: true,
-                decoration: InputDecoration(
-                  isDense: true,
-                  hintText: 'githubSearchRepos'.tr(),
-                  prefixIcon: const Icon(Symbols.search, size: 20),
-                  suffixIcon: _query.isEmpty
-                      ? null
-                      : IconButton(
-                          tooltip: 'commonClearSearch'.tr(),
-                          icon: const Icon(Symbols.close, size: 18),
-                          onPressed: () {
-                            _search.clear();
-                            setState(() => _query = '');
-                          },
-                        ),
-                ),
-                onChanged: (value) => setState(() => _query = value),
-              ),
-            ),
-            Expanded(
-              child: available.isLoading && repos.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
-                  : available.hasError && repos.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Text(
-                          'githubReposLoadError'.tr(
-                            args: ['${available.error}'],
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    )
-                  : filtered.isEmpty
-                  ? Center(child: Text('githubNoReposFound'.tr()))
-                  : ListView.builder(
-                      itemCount: filtered.length,
-                      itemBuilder: (context, index) {
-                        final repo = filtered[index];
-                        final pinned = widget.pinnedSlugs.contains(repo.slug);
-                        return ListTile(
-                          leading: Icon(
-                            repo.private ? Symbols.lock : Symbols.inventory_2,
-                            size: 20,
-                          ),
-                          title: Text(repo.slug),
-                          subtitle: repo.description == null
-                              ? null
-                              : Text(
-                                  repo.description!,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                          trailing: pinned
-                              ? const Icon(Symbols.check_circle, size: 18)
-                              : null,
-                          enabled: !pinned,
-                          onTap: pinned
-                              ? null
-                              : () => Navigator.pop(context, repo),
-                        );
-                      },
-                    ),
-            ),
-          ],
         ),
       ),
     );

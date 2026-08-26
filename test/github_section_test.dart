@@ -9,7 +9,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:conduit/data/local/app_database.dart';
 import 'package:conduit/github/github_models.dart';
+import 'package:conduit/github/github_api.dart';
 import 'package:conduit/github/github_providers.dart';
+import 'package:conduit/github/github_repo_picker_dialog.dart';
 import 'package:conduit/github/github_section.dart';
 import 'package:conduit/github/github_token_store.dart';
 import 'package:conduit/github/github_workflow_strip.dart';
@@ -411,5 +413,176 @@ void main() {
     expect(find.text('githubSignIn'.tr()), findsOneWidget);
     expect(find.text('githubSessionExpired'.tr()), findsOneWidget);
     expect(find.text('githubAddRepo'.tr()), findsNothing);
+  });
+
+  const repos = [
+    GitHubRepo(owner: 'octocat', name: 'hello', fullName: 'octocat/hello'),
+    GitHubRepo(
+      owner: 'octocat',
+      name: 'world',
+      fullName: 'octocat/world',
+      description: 'Greets the world',
+      private: true,
+    ),
+    GitHubRepo(owner: 'acme', name: 'tools', fullName: 'acme/tools'),
+  ];
+
+  /// Hosts a button that opens the repo picker dialog and records what it
+  /// returned, so a test can drive the dialog like the section does.
+  Future<void> pumpPicker(
+    WidgetTester tester, {
+    required Set<String> pinnedSlugs,
+    required Future<List<GitHubRepo>> Function(Ref ref) repos,
+    required void Function(GitHubRepo?) onClosed,
+  }) async {
+    await tester.pumpWidget(
+      EasyLocalization(
+        supportedLocales: const [Locale('en', 'US'), Locale('zh', 'CN')],
+        path: 'assets/translations',
+        fallbackLocale: const Locale('en', 'US'),
+        child: ProviderScope(
+          // Riverpod retries failed providers on its own; a fixed failure
+          // must stay visible so the retry button can be exercised.
+          retry: (_, _) => null,
+          overrides: [githubAvailableReposProvider.overrideWith(repos)],
+          child: MaterialApp(
+            locale: const Locale('en', 'US'),
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () async {
+                    onClosed(
+                      await showGitHubRepoPickerDialog(
+                        context,
+                        pinnedSlugs: pinnedSlugs,
+                      ),
+                    );
+                  },
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('repo picker dialog filters, disables pinned repos and returns '
+      'the tapped one', (WidgetTester tester) async {
+    GitHubRepo? picked;
+    var closed = 0;
+    await pumpPicker(
+      tester,
+      pinnedSlugs: {'octocat/hello'},
+      repos: (ref) async => repos,
+      onClosed: (repo) {
+        picked = repo;
+        closed++;
+      },
+    );
+    // Opens as a floating dialog with every repository listed.
+    expect(find.byType(Dialog), findsOneWidget);
+    expect(find.text('githubAddRepo'.tr()), findsOneWidget);
+    expect(find.text('octocat/hello'), findsOneWidget);
+    expect(find.text('octocat/world'), findsOneWidget);
+    expect(find.text('acme/tools'), findsOneWidget);
+
+    // The already-pinned repository is listed but cannot be picked.
+    final pinnedTile = tester.widget<ListTile>(
+      find.ancestor(
+        of: find.text('octocat/hello'),
+        matching: find.byType(ListTile),
+      ),
+    );
+    expect(pinnedTile.enabled, isFalse);
+    expect(pinnedTile.onTap, isNull);
+    expect(find.text('githubRepoPinned'.tr()), findsOneWidget);
+
+    // The search field has focus and filters by slug or description.
+    expect(tester.widget<TextField>(find.byType(TextField)).autofocus, isTrue);
+    await tester.enterText(find.byType(TextField), 'world');
+    await tester.pumpAndSettle();
+    expect(find.text('octocat/world'), findsOneWidget);
+    expect(find.text('octocat/hello'), findsNothing);
+    expect(find.text('acme/tools'), findsNothing);
+
+    await tester.enterText(find.byType(TextField), 'nothing-matches');
+    await tester.pumpAndSettle();
+    expect(find.text('githubNoReposFound'.tr()), findsOneWidget);
+
+    // Tapping a repository closes the dialog with it.
+    await tester.enterText(find.byType(TextField), 'acme');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('acme/tools'));
+    await tester.pumpAndSettle();
+    expect(find.byType(Dialog), findsNothing);
+    expect(closed, 1);
+    expect(picked?.slug, 'acme/tools');
+  });
+
+  testWidgets('repo picker dialog picks the first match on Enter and closes '
+      'on Escape', (WidgetTester tester) async {
+    GitHubRepo? picked;
+    var closed = 0;
+    await pumpPicker(
+      tester,
+      pinnedSlugs: {'octocat/hello'},
+      repos: (ref) async => repos,
+      onClosed: (repo) {
+        picked = repo;
+        closed++;
+      },
+    );
+    // Enter skips the pinned first row and pins the first pinnable match.
+    await tester.enterText(find.byType(TextField), 'octocat');
+    await tester.pumpAndSettle();
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(find.byType(Dialog), findsNothing);
+    expect(closed, 1);
+    expect(picked?.slug, 'octocat/world');
+
+    // Escape closes without a result.
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.byType(Dialog), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byType(Dialog), findsNothing);
+    expect(closed, 2);
+    expect(picked, isNull);
+  });
+
+  testWidgets('repo picker dialog shows a load error with a retry', (
+    WidgetTester tester,
+  ) async {
+    var attempts = 0;
+    await pumpPicker(
+      tester,
+      pinnedSlugs: const {},
+      repos: (ref) async {
+        attempts++;
+        if (attempts == 1) {
+          throw const GitHubApiException(GitHubApiErrorKind.network, 'offline');
+        }
+        return repos;
+      },
+      onClosed: (_) {},
+    );
+    expect(
+      find.text('githubReposLoadError'.tr(args: ['offline'])),
+      findsOneWidget,
+    );
+    expect(find.text('acme/tools'), findsNothing);
+
+    await tester.tap(find.text('commonRetry'.tr()));
+    await tester.pumpAndSettle();
+    expect(attempts, 2);
+    expect(find.text('acme/tools'), findsOneWidget);
+    expect(find.text('commonRetry'.tr()), findsNothing);
   });
 }

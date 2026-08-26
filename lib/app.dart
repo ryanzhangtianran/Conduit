@@ -33,7 +33,8 @@ class _ConduitAppState extends ConsumerState<ConduitApp> {
   void initState() {
     super.initState();
     if (DesktopWindowFrame.isPlatformDesktop) {
-      _tray = AppTrayController(ref)..init();
+      final tray = _tray = AppTrayController(ref)..init();
+      ref.read(appTrayControllerProvider.notifier).register(tray);
     }
   }
 

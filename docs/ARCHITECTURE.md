@@ -118,6 +118,18 @@ current one and upgrade in place. Never reject an older version outright.
   `statusOf(configId)`; pages must read that instead of inferring status.
 - Terminal adapters are created by `TerminalTabsNotifier`, not by the
   connection manager, and are torn down only after their view unmounts.
+- Updates: `UpdateService` (`lib/shared/services/update_service.dart`)
+  reads the latest GitHub release (`/releases/latest`, unauthenticated) and
+  compares it with the running `PackageInfo.version`; `availableUpdateProvider`
+  holds the result, the checking flag and download progress for both the
+  About page and the launch-time hook in `StartupConnectionBootstrap`
+  (5 s after the workspace shows, when `autoCheckUpdates` is on and no check
+  ran in the last 6 hours). Installing downloads `Conduit.dmg` to a temp
+  directory, spawns a detached `/bin/sh` script that waits for this pid to
+  exit, mounts the image, copies the bundle beside the current one and swaps
+  it in, strips quarantine and relaunches (log:
+  `~/Library/Logs/Conduit/update.log`), then quits through
+  `AppTrayController.quit()` so sessions and forwards close cleanly.
 
 ## Validation
 

@@ -1,9 +1,14 @@
 import 'dart:async';
 
-import 'package:flutter/widgets.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
 import 'package:conduit/data/local/app_database.dart';
+import 'package:conduit/routing/app_router.dart';
+import 'package:conduit/routing/app_router.gr.dart';
+import 'package:conduit/shared/presentation/foundation/foundation.dart';
 import 'local_proxy_migration.dart';
 import 'server_connection_actions.dart';
 import 'server_providers.dart';
@@ -14,6 +19,9 @@ import 'server_providers.dart';
 final startupMigrationsProvider = FutureProvider<void>(
   (ref) => migrateLocalProxyForwards(ref.watch(serverRepositoryProvider)),
 );
+
+/// How long after the workspace appears the launch-time update check runs.
+const startupUpdateCheckDelay = Duration(seconds: 5);
 
 class StartupConnectionBootstrap extends ConsumerStatefulWidget {
   const StartupConnectionBootstrap({super.key, required this.child});
@@ -28,6 +36,24 @@ class StartupConnectionBootstrap extends ConsumerStatefulWidget {
 class _StartupConnectionBootstrapState
     extends ConsumerState<StartupConnectionBootstrap> {
   var _started = false;
+  Timer? _updateCheck;
+
+  @override
+  void initState() {
+    super.initState();
+    // The updater itself makes sure this runs at most once per launch and
+    // not more often than its throttle allows.
+    _updateCheck = Timer(
+      startupUpdateCheckDelay,
+      () => unawaited(_checkForUpdates()),
+    );
+  }
+
+  @override
+  void dispose() {
+    _updateCheck?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,6 +68,24 @@ class _StartupConnectionBootstrapState
       });
     }
     return widget.child;
+  }
+
+  Future<void> _checkForUpdates() async {
+    final update = await ref
+        .read(availableUpdateProvider.notifier)
+        .checkOnStartup();
+    if (update == null || !mounted) return;
+    showStyledSnackBar(
+      message: 'updateSnackbarMessage'.tr(args: [update.version]),
+      icon: Symbols.update,
+      duration: const Duration(seconds: 10),
+      action: SnackBarAction(
+        label: 'updateSnackbarAction'.tr(),
+        onPressed: () => ref
+            .read(appRouterProvider)
+            .navigate(const SettingsRoute(children: [AboutSettingsRoute()])),
+      ),
+    );
   }
 
   Future<void> _connectSavedServers() async {

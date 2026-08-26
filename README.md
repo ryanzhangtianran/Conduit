@@ -70,6 +70,10 @@ ten newest backups in iCloud Drive.
 open a terminal, toggle forwards and quit. Closing the window hides it;
 sessions keep running.
 
+**Updates** — *Settings → About* checks GitHub Releases for a newer
+version (also shortly after launch, at most every six hours; switchable
+off) and can download the DMG, replace the app in place and relaunch.
+
 ## Build from source
 
 ```bash

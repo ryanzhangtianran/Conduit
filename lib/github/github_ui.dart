@@ -169,3 +169,51 @@ String githubClockTime(DateTime time) {
   final minute = local.minute.toString().padLeft(2, '0');
   return '$hour:$minute';
 }
+
+/// A failed fetch: warning icon, the message in the error colour and,
+/// when the caller can refetch, a retry button. Shared by the repository
+/// picker and the run detail's jobs list.
+class GithubLoadErrorNotice extends StatelessWidget {
+  const GithubLoadErrorNotice({super.key, required this.message, this.onRetry});
+
+  final String message;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Symbols.warning, size: 16, color: scheme.error),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                message,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: scheme.error,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (onRetry != null) ...[
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Symbols.refresh, size: 18),
+              label: Text('commonRetry'.tr()),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}

@@ -14,6 +14,21 @@ import 'package:conduit/servers/server_providers.dart';
 import 'package:conduit/servers/terminal_tabs_provider.dart';
 import 'shared/services/app_tray.dart';
 
+/// The live [AppTrayController], so other parts of the app (the updater)
+/// can quit through the same clean shutdown as the menu bar's Quit. Null
+/// until the app registers it and on platforms without a menu bar item.
+final appTrayControllerProvider =
+    NotifierProvider<AppTrayControllerNotifier, AppTrayController?>(
+      AppTrayControllerNotifier.new,
+    );
+
+class AppTrayControllerNotifier extends Notifier<AppTrayController?> {
+  @override
+  AppTrayController? build() => null;
+
+  void register(AppTrayController? controller) => state = controller;
+}
+
 /// Owns the menu bar item for the app's lifetime: keeps its menu in step
 /// with the saved servers, sessions and forwards, and carries out the
 /// actions picked from it (connect, open a terminal, toggle a forward, add
