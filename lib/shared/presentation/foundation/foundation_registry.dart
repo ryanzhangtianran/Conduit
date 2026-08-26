@@ -1,0 +1,31 @@
+// Adapted from Solian's island_ui_foundation package (AGPL-3.0),
+// https://src.solsynth.dev/SoSYS/Solian — vendored so Conduit has no
+// build-time dependency on that repository.
+
+import 'package:material_ui/material_ui.dart';
+
+class AppOverlayRegistry {
+  AppOverlayRegistry._();
+
+  static GlobalKey<OverlayState>? _overlayKey;
+  static GlobalKey<NavigatorState>? _navigatorKey;
+
+  static GlobalKey<OverlayState>? get overlayKey => _overlayKey;
+  static GlobalKey<NavigatorState>? get navigatorKey => _navigatorKey;
+
+  static void configureOverlay(GlobalKey<OverlayState> key) {
+    _overlayKey = key;
+  }
+
+  static void configureNavigator(GlobalKey<NavigatorState> key) {
+    _navigatorKey = key;
+  }
+
+  static bool Function()? _hapticEnabledCallback;
+
+  static bool get hapticEnabled => _hapticEnabledCallback?.call() ?? false;
+
+  static void configureHaptic(bool Function() callback) {
+    _hapticEnabledCallback = callback;
+  }
+}
