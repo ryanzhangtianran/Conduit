@@ -17,117 +17,71 @@
   English · <a href="README_ZH.md">简体中文</a>
 </p>
 
----
+Connections, terminals, file management, monitoring and port forwarding for
+your SSH servers in one native macOS window. Everything works over plain SSH —
+nothing is installed on the server.
 
-Conduit is a native macOS app for managing SSH servers: connections, terminals,
-port forwarding, file management, and system monitoring in one place.
-Day-to-day management is 100% SSH-based — nothing is installed on your servers.
-
-Based on [Solsynth MaidKit](https://github.com/Solsynth/MaidKit).
-
----
-
-## Features
-
-### Connections
-
-- Server dashboard with live status, SSH round-trip latency, load, memory, GPU, and uptime
-- Credentials stored inside each server: password or private key, never echoed back
-- **Jump hosts** (chainable) and per-server **HTTP CONNECT / SOCKS5 proxies**
-- Two-way sync with the local `~/.ssh/config`: manage Host entries in a table,
-  write saved servers into the config, or import hosts from it
-- Import/export as Conduit files; whole-vault encrypted `.conduit` backups
-
-### SSH Keys
-
-- One-click key pair generation (`ed25519` / `rsa` / `ecdsa`) with the public
-  key installed on the server over the live session — works through jump hosts
-- Idempotent per server and type: regenerating replaces the pair locally and
-  drops the stale line from the server's `authorized_keys`
-- Configurable local/remote storage paths with correct permissions (600/644/700)
-
-### Terminal
-
-- libghostty-vt renderer with per-app font, font size, and line height
-- Session sidebar, activity indicator, working-directory tracking
-- Full Nerd Font glyph rendering
-- ⌘-click URLs (plain text or OSC 8 hyperlinks) to open them in the browser
-
-### Port Forwarding
-
-- Local, remote, and SOCKS5 tunnels
-- Presets that auto-start on connect and are supervised back to life when they drop
-- A single manager table: status, active connections, and live traffic per forward
-
-### Monitoring
-
-- Live activity charts: CPU, memory, GPU (via `nvidia-smi`), network, disk
-- Per-server processes, file management (dual-pane SFTP with in-app editor)
-
-### Security
-
-- AES-GCM 256-bit encrypted credential vault, PBKDF2 key derivation
-- Touch ID unlock
-- Encrypted backups to iCloud Drive, restorable on any of your Macs
-
----
-
-## Installation
+## Install
 
 Download `Conduit.dmg` from the
-[latest release](https://github.com/ryanzhangtianran/Conduit/releases), mount
-it, and drag Conduit into Applications.
+[latest release](https://github.com/ryanzhangtianran/Conduit/releases/latest),
+open it and drag Conduit into **Applications**.
 
-> On first launch macOS may warn about an unverified developer — right-click
-> the app and choose **Open** (this build is not notarized).
+The build is not notarized: on first launch right-click the app and choose
+**Open**.
 
----
+## Usage
 
-## Building from Source
+**Vault** — On first launch create a vault password. Every credential is
+stored encrypted; unlock with the password or Touch ID
+(*Settings → Security*).
 
-Requires the [Flutter SDK](https://flutter.dev) (^3.12.2) on macOS.
+**Servers** — *Dashboard → Add server*: host, user, password or private key,
+optional jump host and HTTP/SOCKS5 proxy. The dashboard shows latency, load,
+memory, GPU and uptime for connected servers. Generate a key pair and install
+it on the server from the editor's *SSH key* section. *Connections* lists
+servers alongside your `~/.ssh/config` hosts and syncs both ways.
+
+**Terminal** — *Terminal* tab, pick a server. Tabs, sidebar, ⌘F find,
+⌘-click links, native copy/paste. *Shift+Tab* opens the command palette. Font,
+size, line height and colour schemes live in *Settings → Terminal*.
+
+**Files** — Open a server's file manager from the terminal sidebar or the
+palette: dual pane (local or another server on the left, the server on the
+right), drag and drop, copy/cut/paste across panes, archive/unarchive, and an
+in-app editor for text/JSON/YAML/TOML. Transfers run in the background with
+pause and cancel.
+
+**Monitor** — Live CPU, memory, GPU, network and disk charts plus a process
+list with kill.
+
+**Port forwarding** — Local, remote and SOCKS5 tunnels. Save presets that
+auto-start on connect and keep themselves alive; the table shows traffic per
+forward.
+
+**GitHub** — Sign in with the device flow, pin repositories and watch
+Actions runs; failures show as a badge on the tab.
+
+**Backups** — *Settings → Sync*: export/import connections as a Conduit file
+or CSV, write an encrypted `.conduit` backup of the whole vault, or keep the
+ten newest backups in iCloud Drive.
+
+**Menu bar** — The tray icon shows connection status and lets you connect,
+open a terminal, toggle forwards and quit. Closing the window hides it;
+sessions keep running.
+
+## Build from source
 
 ```bash
 flutter pub get
-flutter run -d macos          # debug
-flutter build macos --release # release build
+dart run build_runner build --delete-conflicting-outputs
+flutter run -d macos
 ```
 
-After changing route annotations or the Drift schema:
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the code layout.
 
-```bash
-dart run build_runner build
-```
+## License
 
-Checks before committing:
-
-```bash
-dart format lib test
-flutter analyze
-flutter test
-```
-
----
-
-## Architecture
-
-Features live flat under `lib/<feature>/`:
-
-- **Riverpod** for state management
-- **auto_route** for navigation
-- **Drift** (SQLite) for persistence
-- **dartssh2** for SSH
-- **flterm / libghostty-vt** for the terminal (vendored in `packages/`)
-
----
-
-## Licensing
-
-This project is licensed under the GNU Affero General Public License v3.0
-(AGPL-3.0). If you deploy, fork, or redistribute modified versions, you must
-comply with its terms, including preserving copyright notices and providing
-corresponding source code.
-
-Conduit is based on MaidKit; original authorship and copyright attribution to
-LittleSheep, Solsynth, and that project's contributors are retained where
-applicable. See [LICENSE.txt](./LICENSE.txt) for the full text.
+[AGPL-3.0](LICENSE.txt). Conduit started from
+[MaidKit](https://github.com/Solsynth/MaidKit) by LittleSheep / Solsynth;
+that attribution is retained as the license requires.
